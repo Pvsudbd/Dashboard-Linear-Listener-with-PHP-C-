@@ -1,0 +1,98 @@
+#define _WIN32_WINNT 0x0A00
+#include <iostream>
+#include <fstream>
+#include <string>
+#include "Framework\httplib.h"
+#include "Framework\json.hpp"
+
+using namespace httplib;
+using namespace std;
+using json = nlohmann::json;
+
+json LinearSearchI(const json& data, const string &nama);
+
+json LinearSearchR(const json& data, const string &nama, size_t index = 0);
+
+int main() {
+    Server svr;
+    string pilihan;
+    string filename;
+
+    cout << "Pilih data:\nA. 200\nB. 1000\n> ";
+    cin >> pilihan;
+
+    if (pilihan == "A" || pilihan == "a") {
+        filename = "Data\\Data.json";
+    } else if (pilihan == "B" || pilihan == "b") {
+        filename = "Data\\DataBig.json";
+    } else {
+        filename = "Data\\dataBuesar.json";
+    }
+
+    svr.Get("/items", [filename](const Request&, Response& res) {
+        ifstream file(filename);
+        if (!file.is_open()) {
+            res.status = 500;
+            res.set_content("Gagal membuka file JSON", "text/plain");
+            return;
+        }
+
+        json data;
+        try {
+            file >> data;
+        } catch (...) {
+            res.status = 500;
+            res.set_content("Format JSON rusak", "text/plain");
+            return;
+        }
+
+        res.set_content(data.dump(), "application/json");
+
+    });
+
+    svr.Get("/Search", [filename](const Request&, Response& res){
+        ifstream fileSearch(filename);
+        if (!fileSearch.is_open()) {
+            res.status = 500;
+            res.set_content("Gagal membuka file JSON", "text/plain");
+            return;
+        }
+
+        json dataSearch;
+        try {
+            fileSearch >> dataSearch;
+        } catch (...) {
+            res.status = 500;
+            res.set_content("Format JSON rusak", "text/plain");
+            return;
+        }
+
+
+
+    });
+
+    cout << "API jalan di http://127.0.0.1:8080/items\n";
+    svr.listen("0.0.0.0", 8080);
+}
+
+
+json LinearSearchI(const json& data,const string &nama) {
+    for (auto& DataJ : data) {
+        if (DataJ["Item"] == nama)
+        {
+            return DataJ;
+        }
+    }
+    return json();
+}
+
+json LinearSearchR(const json& data, const string &nama, size_t index) {
+    if (index >= data.size()) return json();
+
+    if (data[index].contains("Item") &&
+        data[index]["Item"] == nama) {
+        return data[index];
+    }
+
+    return LinearSearchR(data, nama, index + 1);
+}
