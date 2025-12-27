@@ -4,7 +4,9 @@
 #include <string>
 #include "Framework\httplib.h"
 #include "Framework\json.hpp"
+#include <chrono>
 
+using namespace std::chrono;
 using namespace httplib;
 using namespace std;
 using json = nlohmann::json;
@@ -73,13 +75,28 @@ int main() {
 
     string nama = req_json["item"];
 
+    auto startIter = high_resolution_clock::now();
     json hasilIteratif = LinearSearchI(dataSearch, nama);
+    auto stopIter = high_resolution_clock::now();
+
+    auto startrekur = high_resolution_clock::now();
     json hasilRekursif = LinearSearchR(dataSearch, nama);
+    auto stopRekur = high_resolution_clock::now();
+
+    auto durationIter = duration_cast<microseconds>(stopIter - startIter).count();
+    auto durationRekur = duration_cast<microseconds>(stopRekur - startrekur).count();
 
     json response;
     response["input"] = nama;
-    response["iterative"] = hasilIteratif.empty() ? json(nullptr) : hasilIteratif;
-    response["recursive"] = hasilRekursif.empty() ? json(nullptr) : hasilRekursif;
+
+    response["iterative"] = json::object();
+    response["iterative"]["result"] = hasilIteratif.empty() ? json(nullptr) : hasilIteratif;
+    response["iterative"]["time_us"] = durationIter;
+
+
+    response["recursive"] = json::object();
+    response["recursive"]["result"] = hasilRekursif.empty() ? json(nullptr) : hasilRekursif;
+    response["recursive"]["time_us"] = durationRekur;
 
     res.set_content(response.dump(), "application/json");
 });

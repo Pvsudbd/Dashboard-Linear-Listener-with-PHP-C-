@@ -26,7 +26,7 @@ $offset = ($page - 1) * $limit;
 // Ambil data sesuai halaman
 $items_paginated = array_slice($items, $offset, $limit);
 
-//Kirim request ke c++
+// Request + response handler
 $search_result = null;
 $keyword = "";
 
@@ -86,7 +86,19 @@ if (!empty($_POST['search'])) {
         <?php if ($search_result === null): ?>
             Menampilkan <?= $offset + 1 ?> - <?= min($offset + $limit, $total_data) ?> dari <?= $total_data ?> data
         <?php else: ?>
-            Hasil pencarian: "<?= htmlspecialchars($keyword) ?>"
+            <div class="space-y-1">
+                <p class="font-medium">Hasil pencarian: "<?= htmlspecialchars($keyword) ?>"</p>
+                <?php if (isset($search_result['iterative']['time_us']) || isset($search_result['recursive']['time_us'])): ?>
+                    <div class="text-xs space-y-0.5">
+                        <?php if (isset($search_result['iterative']['time_us'])): ?>
+                            <p>Kompleksitas Iterative: <span class="font-semibold text-blue-600"><?= number_format($search_result['iterative']['time_us']) ?> Microsecond</span></p>
+                        <?php endif; ?>
+                        <?php if (isset($search_result['recursive']['time_us'])): ?>
+                            <p>Kompleksitas Recursive: <span class="font-semibold text-purple-600"><?= number_format($search_result['recursive']['time_us']) ?> Microsecond</span></p>
+                        <?php endif; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
         <?php endif; ?>
     </div>
 
@@ -149,7 +161,7 @@ if (!empty($_POST['search'])) {
         <tbody>
         <?php if ($search_result !== null): ?>
             
-            <?php if ($search_result['iterative'] === null && $search_result['recursive'] === null): ?>
+            <?php if ($search_result['iterative']['result'] === null && $search_result['recursive']['result'] === null): ?>
                 <tr>
                     <td colspan="7" class="px-6 py-8 text-center">
                         <div class="flex flex-col items-center gap-2">
@@ -164,8 +176,8 @@ if (!empty($_POST['search'])) {
                 </tr>
             <?php else: ?>
                 
-                <?php if ($search_result['iterative'] !== null):
-                    $item = $search_result['iterative'];
+                <?php if ($search_result['iterative']['result'] !== null):
+                    $item = $search_result['iterative']['result'];
                 ?>
                 <tr class="bg-blue-50 border-b border-gray-200 hover:bg-blue-100 text-center">
                     <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
@@ -194,8 +206,8 @@ if (!empty($_POST['search'])) {
                 </tr>
                 <?php endif; ?>
 
-                <?php if ($search_result['recursive'] !== null):
-                    $item = $search_result['recursive'];
+                <?php if ($search_result['recursive']['result'] !== null):
+                    $item = $search_result['recursive']['result'];
                 ?>
                 <tr class="bg-purple-50 border-b border-gray-200 hover:bg-purple-100 text-center">
                     <th scope="row" class="px-6 py-4 font-medium text-gray-900 whitespace-nowrap">
