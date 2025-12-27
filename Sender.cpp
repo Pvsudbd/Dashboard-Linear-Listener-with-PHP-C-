@@ -56,18 +56,7 @@ int main() {
     });
 
 
-    svr.Post("/Search", [filename](const Request& req, Response& res) {
-    ifstream fileSearch(filename);
-    if (!fileSearch.is_open()) {
-        res.status = 500;
-        res.set_content("Gagal membuka file JSON", "text/plain");
-        return;
-    }
-
-    json dataSearch;
-    fileSearch >> dataSearch;
-
-
+    svr.Post("/Search", [](const Request& req, Response& res) {
     json req_json;
     try {
         req_json = json::parse(req.body);
@@ -78,32 +67,51 @@ int main() {
     }
 
     string nama = req_json["item"];
+    string size = req_json.value("size", "200"); 
+    
+    string filename;
+    if (size == "200") filename = "Data\\Data.json";
+    else if (size == "1000") filename = "Data\\DataBig.json";
+    else if (size == "10000") filename = "Data\\dataten.json";
+    else {
+        res.status = 400;
+        res.set_content("Ukuran data tidak valid", "text/plain");
+        return;
+    }
+
+    ifstream fileSearch(filename);
+    if (!fileSearch.is_open()) {
+        res.status = 500;
+        res.set_content("Gagal membuka file JSON", "text/plain");
+        return;
+    }
+
+    json dataSearch;
+    fileSearch >> dataSearch;
 
     auto startIter = high_resolution_clock::now();
     json hasilIteratif = LinearSearchI(dataSearch, nama);
     auto stopIter = high_resolution_clock::now();
 
-    auto startrekur = high_resolution_clock::now();
+    auto startRekur = high_resolution_clock::now();
     json hasilRekursif = LinearSearchR(dataSearch, nama);
     auto stopRekur = high_resolution_clock::now();
 
-    auto durationIter = duration_cast<microseconds>(stopIter - startIter).count();
-    auto durationRekur = duration_cast<microseconds>(stopRekur - startrekur).count();
-
     json response;
     response["input"] = nama;
+    response["iterative"]["time_us"] =
+        duration_cast<microseconds>(stopIter - startIter).count();
+    response["iterative"]["result"] =
+        hasilIteratif.empty() ? json(nullptr) : hasilIteratif;
 
-    response["iterative"] = json::object();
-    response["iterative"]["result"] = hasilIteratif.empty() ? json(nullptr) : hasilIteratif;
-    response["iterative"]["time_us"] = durationIter;
-
-
-    response["recursive"] = json::object();
-    response["recursive"]["result"] = hasilRekursif.empty() ? json(nullptr) : hasilRekursif;
-    response["recursive"]["time_us"] = durationRekur;
+    response["recursive"]["time_us"] =
+        duration_cast<microseconds>(stopRekur - startRekur).count();
+    response["recursive"]["result"] =
+        hasilRekursif.empty() ? json(nullptr) : hasilRekursif;
 
     res.set_content(response.dump(), "application/json");
 });
+
 
     cout << "API jalan di http://127.0.0.1:8080/items\n";
     svr.listen("0.0.0.0", 8080);

@@ -41,10 +41,14 @@ $search_result = null;
 $keyword = "";
 
 if (!empty($_POST['search'])) {
-    $keyword = trim($_POST['search']); 
+    $keyword = trim($_POST['search']);
+    
+    // Ambil size dari POST (hidden input) atau dari GET
+    $search_size = isset($_POST['size']) ? $_POST['size'] : $size;
 
     $payload = json_encode([
-        "item" => $keyword
+        "item" => $keyword,
+        "size" => $search_size  // PENTING: kirim size ke C++
     ]);
 
     $ch = curl_init("http://127.0.0.1:8080/Search"); // Samain sama yang di c++, jangan diganti!
@@ -80,8 +84,8 @@ if (!empty($_POST['search'])) {
 <!-- Navbar area-->
 <nav class="bg-blue-50 fixed w-full z-20 top-0 start-0 border-b border-gray-300">
   <div class="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-5">
-    <a href="https://flowbite.com/" class="flex items-center space-x-3 rtl:space-x-reverse">
-        <img src="https://flowbite.com/docs/images/logo.svg" class="h-7" alt="Flowbite Logo">
+    <a href="https://www.youtube.com/watch?v=xvFZjo5PgG0" class="flex items-center space-x-3 rtl:space-x-reverse">
+        <img src="https://flowbite.com/docs/images/logo.svg" class="h-7" alt="Logo Gwejh">
         <span class="self-center text-xl text-heading font-semibold whitespace-nowrap">SiAdmin</span>
     </a>
 </nav>
@@ -93,7 +97,7 @@ if (!empty($_POST['search'])) {
         <div class="flex items-center justify-between flex-wrap gap-4">
             <div>
                 <h3 class="text-sm font-semibold text-gray-700 mb-1">Pilih Ukuran Data</h3>
-                <p class="text-xs text-gray-600">Pilih jumlah data yang ingin ditampilkan</p>
+                <p class="text-xs text-gray-600">Ntar bisa di reset kok</p>
             </div>
             <div class="flex gap-3 items-center">
                 <a href="?size=200" 
@@ -119,7 +123,6 @@ if (!empty($_POST['search'])) {
     </div>
 
     <h1 class="text-2xl font-bold mb-6 text-center">Data Pengiriman Barang</h1>
-<!-- Bungkus dengan flex container -->
 <div class="flex justify-between items-center mb-6">
     
     <!-- Info data (kiri) -->
@@ -132,10 +135,10 @@ if (!empty($_POST['search'])) {
                 <?php if (isset($search_result['iterative']['time_us']) || isset($search_result['recursive']['time_us'])): ?>
                     <div class="text-xs space-y-0.5">
                         <?php if (isset($search_result['iterative']['time_us'])): ?>
-                            <p>⏱️ Kompleksitas Iterative: <span class="font-semibold text-blue-600"><?= number_format($search_result['iterative']['time_us']) ?> μs</span></p>
+                            <p>Kompleksitas Iterative: <span class="font-semibold text-blue-600"><?= number_format($search_result['iterative']['time_us']) ?> μs</span></p>
                         <?php endif; ?>
                         <?php if (isset($search_result['recursive']['time_us'])): ?>
-                            <p>⏱️ Kompleksitas Recursive: <span class="font-semibold text-purple-600"><?= number_format($search_result['recursive']['time_us']) ?> μs</span></p>
+                            <p>Kompleksitas Recursive: <span class="font-semibold text-purple-600"><?= number_format($search_result['recursive']['time_us']) ?> μs</span></p>
                         <?php endif; ?>
                     </div>
                 <?php endif; ?>
@@ -144,7 +147,8 @@ if (!empty($_POST['search'])) {
     </div>
 
     <!-- Searchbar (kanan) -->
-    <form method="POST" class="w-96">   
+    <form method="POST" class="w-96">
+        <input type="hidden" name="size" value="<?= $size ?>">
         <label for="search" class="block mb-2.5 text-sm font-medium text-gray-900 sr-only">Search</label>
         <div class="relative">
             <div class="absolute inset-y-0 start-0 flex items-center ps-3 pointer-events-none">
@@ -194,11 +198,15 @@ if (!empty($_POST['search'])) {
                 <th scope="col" class="px-6 py-3 font-medium text-center">
                     Kedatangan
                 </th>
+                <th scope="col" class="px-6 py-3 font-medium text-center">
+                    Status
+                </th>
             </tr>
         </thead>
         <tbody>
         <?php if ($search_result !== null): ?>
             
+        <!-- Iterative Area-->
             <?php if ($search_result['iterative']['result'] === null && $search_result['recursive']['result'] === null): ?>
                 <tr>
                     <td colspan="7" class="px-6 py-8 text-center">
@@ -208,7 +216,7 @@ if (!empty($_POST['search'])) {
                             </svg>
                             <p class="text-gray-600 font-medium">Data tidak ditemukan</p>
                             <p class="text-sm text-gray-500">Item "<span class="font-semibold"><?= htmlspecialchars($keyword) ?></span>" tidak ada dalam database</p>
-                            <a href="?" class="mt-2 text-blue-600 hover:underline text-sm">Kembali ke semua data</a>
+                            <a href="?size=<?= $size ?>" class="mt-2 text-blue-600 hover:underline text-sm">Kembali ke semua data</a>
                         </div>
                     </td>
                 </tr>
@@ -238,12 +246,13 @@ if (!empty($_POST['search'])) {
                     </td>
                     <td class="px-6 py-4 text-center">
                         <span class="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
-                            🔄 ITERATIVE
+                            ITERATIVE
                         </span>
                     </td>
                 </tr>
                 <?php endif; ?>
 
+                 <!-- Rekursive Area-->
                 <?php if ($search_result['recursive']['result'] !== null):
                     $item = $search_result['recursive']['result'];
                 ?>
@@ -268,7 +277,7 @@ if (!empty($_POST['search'])) {
                     </td>
                     <td class="px-6 py-4 text-center">
                         <span class="inline-block px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
-                            ♻️ RECURSIVE
+                            RECURSIVE
                         </span>
                     </td>
                 </tr>
@@ -300,6 +309,9 @@ if (!empty($_POST['search'])) {
                     </td>
                     <td class="px-6 py-4">
                         <?= htmlspecialchars($item['DateOfArrive'] ?? '-') ?>
+                    </td>
+                    <td class="px-6 py-4 text-center text-gray-400">
+                        -
                     </td>
                 </tr>
             <?php endforeach; ?>
