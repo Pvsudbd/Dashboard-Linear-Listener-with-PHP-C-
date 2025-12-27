@@ -12,7 +12,6 @@ using namespace std;
 using json = nlohmann::json;
 
 json LinearSearchI(const json& data, const string &nama);
-
 json LinearSearchR(const json& data, const string &nama, size_t index = 0);
 
 int main() {
