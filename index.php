@@ -30,7 +30,7 @@ $items_paginated = array_slice($items, $offset, $limit);
 $search_result = null;
 $keyword = "";
 
-if (!empty($_POST['search'])) {
+if (!empty($_POST['search'])) { // Search samain sama apa yang di c++, jangan dirubah sih.
     $keyword = trim($_POST['search']);
 
     $payload = json_encode([
@@ -176,6 +176,7 @@ if (!empty($_POST['search'])) {
                 </tr>
             <?php else: ?>
                 
+            <!-- Wilayah iterativ -->
                 <?php if ($search_result['iterative']['result'] !== null):
                     $item = $search_result['iterative']['result'];
                 ?>
@@ -206,6 +207,7 @@ if (!empty($_POST['search'])) {
                 </tr>
                 <?php endif; ?>
 
+                <!-- Wilayah Rekursiv -->
                 <?php if ($search_result['recursive']['result'] !== null):
                     $item = $search_result['recursive']['result'];
                 ?>

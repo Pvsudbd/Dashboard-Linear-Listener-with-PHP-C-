@@ -20,7 +20,7 @@ int main() {
     string pilihan;
     string filename;
 
-    cout << "Pilih data:\nA. 200\nB. 1000\n> ";
+    cout << "Pilih data:\nA. 200\nB. 1000\nC. 10.000\n> ";
     cin >> pilihan;
 
     if (pilihan == "A" || pilihan == "a") {
@@ -28,7 +28,7 @@ int main() {
     } else if (pilihan == "B" || pilihan == "b") {
         filename = "Data\\DataBig.json";
     } else {
-        filename = "Data\\dataBuesar.json";
+        filename = "Data\\dataten.json";
     }
 
     svr.Get("/items", [filename](const Request&, Response& res) {
