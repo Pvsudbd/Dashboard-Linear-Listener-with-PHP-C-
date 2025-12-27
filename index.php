@@ -26,9 +26,7 @@ $offset = ($page - 1) * $limit;
 // Ambil data sesuai halaman
 $items_paginated = array_slice($items, $offset, $limit);
 
-/* =======================
-   SEARCH KE C++ (/Search)
-   ======================= */
+//Kirim request ke c++
 $search_result = null;
 $keyword = "";
 
