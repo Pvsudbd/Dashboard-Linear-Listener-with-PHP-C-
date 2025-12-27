@@ -19,37 +19,42 @@ int main() {
     string pilihan;
     string filename;
 
-    cout << "Pilih data:\nA. 200\nB. 1000\nC. 10.000\n> ";
-    cin >> pilihan;
+    svr.Get("/items", [](const Request& req, Response& res) {
+    string filename;
 
-    if (pilihan == "A" || pilihan == "a") {
-        filename = "Data\\Data.json";
-    } else if (pilihan == "B" || pilihan == "b") {
-        filename = "Data\\DataBig.json";
-    } else {
-        filename = "Data\\dataten.json";
+    if (!req.has_param("size")) {
+        res.status = 400;
+        res.set_content("Parameter size tidak ada", "text/plain");
+        return;
     }
 
-    svr.Get("/items", [filename](const Request&, Response& res) {
-        ifstream file(filename);
-        if (!file.is_open()) {
-            res.status = 500;
-            res.set_content("Gagal membuka file JSON", "text/plain");
-            return;
-        }
+    string size = req.get_param_value("size");
 
-        json data;
-        try {
-            file >> data;
-        } catch (...) {
-            res.status = 500;
-            res.set_content("Format JSON rusak", "text/plain");
-            return;
-        }
+    if (size == "200") {
+        filename = "Data\\Data.json";
+    } else if (size == "1000") {
+        filename = "Data\\DataBig.json";
+    } else if (size == "10000") {
+        filename = "Data\\dataten.json";
+    } else {
+        res.status = 400;
+        res.set_content("Ukuran data tidak valid", "text/plain");
+        return;
+    }
 
-        res.set_content(data.dump(), "application/json");
+    ifstream file(filename);
+    if (!file.is_open()) {
+        res.status = 500;
+        res.set_content("Gagal membuka file JSON", "text/plain");
+        return;
+    }
 
+    json data;
+    file >> data;
+
+    res.set_content(data.dump(), "application/json");
     });
+
 
     svr.Post("/Search", [filename](const Request& req, Response& res) {
     ifstream fileSearch(filename);

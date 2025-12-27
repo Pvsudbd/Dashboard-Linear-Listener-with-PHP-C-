@@ -1,5 +1,14 @@
 <?php
-$json = file_get_contents("http://127.0.0.1:8080/items"); // jangan asal ganti oy
+// Ambil size dari GET parameter, default 200
+$size = isset($_GET['size']) ? $_GET['size'] : '200';
+
+// Validasi size
+if (!in_array($size, ['200', '1000', '10000'])) {
+    $size = '200';
+}
+
+// Area ngambil size
+$json = file_get_contents("http://127.0.0.1:8080/items?size=" . $size);
 
 if ($json === false) {
     die("Gagal mengambil data dari API");
@@ -10,6 +19,7 @@ $items = json_decode($json, true);
 if (!is_array($items)) {
     die("Format JSON tidak valid");
 }
+// Kalau eror, berarti c++ belum dirun!
 
 // Pengaturan pagination, jangan dihapus woy
 $limit = 50;
@@ -26,18 +36,18 @@ $offset = ($page - 1) * $limit;
 // Ambil data sesuai halaman
 $items_paginated = array_slice($items, $offset, $limit);
 
-// Request + response handler
+// Request and Response area
 $search_result = null;
 $keyword = "";
 
-if (!empty($_POST['search'])) { // Search samain sama apa yang di c++, jangan dirubah sih.
-    $keyword = trim($_POST['search']);
+if (!empty($_POST['search'])) {
+    $keyword = trim($_POST['search']); 
 
     $payload = json_encode([
         "item" => $keyword
     ]);
 
-    $ch = curl_init("http://127.0.0.1:8080/Search");
+    $ch = curl_init("http://127.0.0.1:8080/Search"); // Samain sama yang di c++, jangan diganti!
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_POST => true,
@@ -77,6 +87,37 @@ if (!empty($_POST['search'])) { // Search samain sama apa yang di c++, jangan di
 </nav>
 
 <div class="max-w-6xl mx-auto bg-white p-6 rounded shadow mt-10">
+    
+    <!-- Data Size Selector -->
+    <div class="mb-6 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+        <div class="flex items-center justify-between flex-wrap gap-4">
+            <div>
+                <h3 class="text-sm font-semibold text-gray-700 mb-1">Pilih Ukuran Data</h3>
+                <p class="text-xs text-gray-600">Pilih jumlah data yang ingin ditampilkan</p>
+            </div>
+            <div class="flex gap-3 items-center">
+                <a href="?size=200" 
+                   class="px-4 py-2 rounded-lg font-medium text-sm transition <?= $size == '200' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50' ?>">
+                    200 Data
+                </a>
+                <a href="?size=1000" 
+                   class="px-4 py-2 rounded-lg font-medium text-sm transition <?= $size == '1000' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50' ?>">
+                    1,000 Data
+                </a>
+                <a href="?size=10000" 
+                   class="px-4 py-2 rounded-lg font-medium text-sm transition <?= $size == '10000' ? 'bg-blue-600 text-white shadow-md' : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50' ?>">
+                    10,000 Data
+                </a>
+                <?php if ($size != '200'): ?>
+                <a href="?" 
+                   class="px-4 py-2 rounded-lg font-medium text-sm bg-gray-500 text-white hover:bg-gray-600 transition">
+                    Reset Data
+                </a>
+                <?php endif; ?>
+            </div>
+        </div>
+    </div>
+
     <h1 class="text-2xl font-bold mb-6 text-center">Data Pengiriman Barang</h1>
 <!-- Bungkus dengan flex container -->
 <div class="flex justify-between items-center mb-6">
@@ -91,10 +132,10 @@ if (!empty($_POST['search'])) { // Search samain sama apa yang di c++, jangan di
                 <?php if (isset($search_result['iterative']['time_us']) || isset($search_result['recursive']['time_us'])): ?>
                     <div class="text-xs space-y-0.5">
                         <?php if (isset($search_result['iterative']['time_us'])): ?>
-                            <p>Kompleksitas Iterative: <span class="font-semibold text-blue-600"><?= number_format($search_result['iterative']['time_us']) ?> Microsecond</span></p>
+                            <p>⏱️ Kompleksitas Iterative: <span class="font-semibold text-blue-600"><?= number_format($search_result['iterative']['time_us']) ?> μs</span></p>
                         <?php endif; ?>
                         <?php if (isset($search_result['recursive']['time_us'])): ?>
-                            <p>Kompleksitas Recursive: <span class="font-semibold text-purple-600"><?= number_format($search_result['recursive']['time_us']) ?> Microsecond</span></p>
+                            <p>⏱️ Kompleksitas Recursive: <span class="font-semibold text-purple-600"><?= number_format($search_result['recursive']['time_us']) ?> μs</span></p>
                         <?php endif; ?>
                     </div>
                 <?php endif; ?>
@@ -153,9 +194,6 @@ if (!empty($_POST['search'])) { // Search samain sama apa yang di c++, jangan di
                 <th scope="col" class="px-6 py-3 font-medium text-center">
                     Kedatangan
                 </th>
-                <th scope="col" class="px-6 py-3 font-medium text-center">
-                    Detail
-                </th>
             </tr>
         </thead>
         <tbody>
@@ -176,7 +214,6 @@ if (!empty($_POST['search'])) { // Search samain sama apa yang di c++, jangan di
                 </tr>
             <?php else: ?>
                 
-            <!-- Wilayah iterativ -->
                 <?php if ($search_result['iterative']['result'] !== null):
                     $item = $search_result['iterative']['result'];
                 ?>
@@ -201,13 +238,12 @@ if (!empty($_POST['search'])) { // Search samain sama apa yang di c++, jangan di
                     </td>
                     <td class="px-6 py-4 text-center">
                         <span class="inline-block px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
-                            ITERATIVE
+                            🔄 ITERATIVE
                         </span>
                     </td>
                 </tr>
                 <?php endif; ?>
 
-                <!-- Wilayah Rekursiv -->
                 <?php if ($search_result['recursive']['result'] !== null):
                     $item = $search_result['recursive']['result'];
                 ?>
@@ -232,7 +268,7 @@ if (!empty($_POST['search'])) { // Search samain sama apa yang di c++, jangan di
                     </td>
                     <td class="px-6 py-4 text-center">
                         <span class="inline-block px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-semibold">
-                            RECURSIVE
+                            ♻️ RECURSIVE
                         </span>
                     </td>
                 </tr>
@@ -265,9 +301,6 @@ if (!empty($_POST['search'])) { // Search samain sama apa yang di c++, jangan di
                     <td class="px-6 py-4">
                         <?= htmlspecialchars($item['DateOfArrive'] ?? '-') ?>
                     </td>
-                    <td class="px-6 py-4 text-right">
-                        <a href="detail.php?id=<?= $item['id'] ?>" class="font-medium text-blue-600 hover:underline">Detail</a>
-                    </td>
                 </tr>
             <?php endforeach; ?>
             
@@ -277,13 +310,13 @@ if (!empty($_POST['search'])) { // Search samain sama apa yang di c++, jangan di
 </div>
 
     <!-- Pagination -->
-    <?php if ($search_result === null): ?>
+    <?php if ($search_result === null && $total_pages > 1): ?>
     <div class="mt-6 flex justify-center items-center gap-2">
         <?php if ($page > 1): ?>
-            <a href="?page=1" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">
+            <a href="?size=<?= $size ?>&page=1" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">
                 &laquo; First
             </a>
-            <a href="?page=<?= $page - 1 ?>" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">
+            <a href="?size=<?= $size ?>&page=<?= $page - 1 ?>" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">
                 &lsaquo; Prev
             </a>
         <?php endif; ?>
@@ -295,17 +328,17 @@ if (!empty($_POST['search'])) { // Search samain sama apa yang di c++, jangan di
         
         for ($i = $start_page; $i <= $end_page; $i++):
         ?>
-            <a href="?page=<?= $i ?>" 
+            <a href="?size=<?= $size ?>&page=<?= $i ?>" 
                class="px-3 py-1 rounded <?= $i == $page ? 'bg-slate-700 text-white' : 'bg-gray-200 hover:bg-gray-300' ?>">
                 <?= $i ?>
             </a>
         <?php endfor; ?>
 
         <?php if ($page < $total_pages): ?>
-            <a href="?page=<?= $page + 1 ?>" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">
+            <a href="?size=<?= $size ?>&page=<?= $page + 1 ?>" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">
                 Next &rsaquo;
             </a>
-            <a href="?page=<?= $total_pages ?>" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">
+            <a href="?size=<?= $size ?>&page=<?= $total_pages ?>" class="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300">
                 Last &raquo;
             </a>
         <?php endif; ?>
