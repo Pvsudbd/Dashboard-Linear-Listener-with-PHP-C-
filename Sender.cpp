@@ -50,26 +50,39 @@ int main() {
 
     });
 
-    svr.Get("/Search", [filename](const Request&, Response& res){
-        ifstream fileSearch(filename);
-        if (!fileSearch.is_open()) {
-            res.status = 500;
-            res.set_content("Gagal membuka file JSON", "text/plain");
-            return;
-        }
+    svr.Post("/Search", [filename](const Request& req, Response& res) {
+    ifstream fileSearch(filename);
+    if (!fileSearch.is_open()) {
+        res.status = 500;
+        res.set_content("Gagal membuka file JSON", "text/plain");
+        return;
+    }
 
-        json dataSearch;
-        try {
-            fileSearch >> dataSearch;
-        } catch (...) {
-            res.status = 500;
-            res.set_content("Format JSON rusak", "text/plain");
-            return;
-        }
+    json dataSearch;
+    fileSearch >> dataSearch;
 
 
+    json req_json;
+    try {
+        req_json = json::parse(req.body);
+    } catch (...) {
+        res.status = 400;
+        res.set_content("JSON tidak valid", "text/plain");
+        return;
+    }
 
-    });
+    string nama = req_json["item"];
+
+    json hasilIteratif = LinearSearchI(dataSearch, nama);
+    json hasilRekursif = LinearSearchR(dataSearch, nama);
+
+    json response;
+    response["input"] = nama;
+    response["iterative"] = hasilIteratif.empty() ? json(nullptr) : hasilIteratif;
+    response["recursive"] = hasilRekursif.empty() ? json(nullptr) : hasilRekursif;
+
+    res.set_content(response.dump(), "application/json");
+});
 
     cout << "API jalan di http://127.0.0.1:8080/items\n";
     svr.listen("0.0.0.0", 8080);
