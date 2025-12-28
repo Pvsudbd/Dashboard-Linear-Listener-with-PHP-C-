@@ -85,7 +85,7 @@ if (!empty($_POST['search'])) {
     
     // Simpan hasil kompleksitas ke session jika data ditemukan
     // Bisa jalan walau cuman rekursiv doang yang keluar
-    date_default_timezone_set('Asia/Jakarta'); 
+    date_default_timezone_set('Asia/Jakarta');
     if ($search_result && 
         isset($search_result['iterative']['time_us']) && 
         isset($search_result['recursive']['time_us']) &&
@@ -550,8 +550,167 @@ if (!empty($_POST['search'])) {
                 });
                 </script>
             <?php endif; ?>
+            </div>
+           <div class="col-span-5 bg-gray-50 p-4 rounded-lg border border-gray-200">
+    <h3 class="font-semibold text-gray-700 mb-3">Grafik Performa terhadap Ukuran Data</h3>
+    
+    <?php if (empty($_SESSION['complexity_results'])): ?>
+        <div class="flex items-center justify-center h-80 text-gray-400">
+            <div class="text-center">
+                <svg class="w-20 h-20 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"></path>
+                </svg>
+                <p class="font-medium">Line chart akan muncul setelah ada data</p>
+                <p class="text-sm mt-1">Lakukan pencarian untuk melihat performa</p>
+            </div>
         </div>
+    <?php else: ?>
+        <div class="bg-white p-4 rounded border border-gray-200">
+            <canvas id="lineChart" class="max-h-80"></canvas>
+        </div>
+        
+        <script>
+        // Data untuk line chart
+        const lineData = <?= json_encode(array_values($_SESSION['complexity_results'])) ?>;
+        
+        // Kelompokkan data berdasarkan size dan hitung rata-rata
+        const groupedData = {};
+        lineData.forEach(item => {
+            if (!groupedData[item.size]) {
+                groupedData[item.size] = {
+                    iterative: [],
+                    recursive: []
+                };
+            }
+            groupedData[item.size].iterative.push(item.iterative);
+            groupedData[item.size].recursive.push(item.recursive);
+        });
+        
+        // Hitung rata-rata dan urutkan berdasarkan size
+        const sortedSizes = Object.keys(groupedData).sort((a, b) => parseInt(a) - parseInt(b));
+        const avgIterative = sortedSizes.map(size => {
+            const values = groupedData[size].iterative;
+            return values.reduce((a, b) => a + b, 0) / values.length;
+        });
+        const avgRecursive = sortedSizes.map(size => {
+            const values = groupedData[size].recursive;
+            return values.reduce((a, b) => a + b, 0) / values.length;
+        });
+        
+        const ctxLine = document.getElementById('lineChart').getContext('2d');
+        const lineChart = new Chart(ctxLine, {
+            type: 'line',
+            data: {
+                labels: sortedSizes.map(size => `${parseInt(size).toLocaleString()} data`),
+                datasets: [
+                    {
+                        label: 'Iterative',
+                        data: avgIterative,
+                        borderColor: 'rgb(59, 130, 246)',
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        pointBackgroundColor: 'rgb(59, 130, 246)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
+                    },
+                    {
+                        label: 'Recursive',
+                        data: avgRecursive,
+                        borderColor: 'rgb(168, 85, 247)',
+                        backgroundColor: 'rgba(168, 85, 247, 0.1)',
+                        borderWidth: 3,
+                        tension: 0.4,
+                        fill: true,
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        pointBackgroundColor: 'rgb(168, 85, 247)',
+                        pointBorderColor: '#fff',
+                        pointBorderWidth: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Kompleksitas Waktu: Ukuran Data vs Waktu Eksekusi',
+                        font: {
+                            size: 16,
+                            weight: 'bold'
+                        }
+                    },
+                    legend: {
+                        display: true,
+                        position: 'top',
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': ' + 
+                                       context.parsed.y.toLocaleString() + ' μs';
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Ukuran Data',
+                            font: {
+                                size: 12,
+                                weight: 'bold'
+                            }
+                        },
+                        ticks: {
+                            padding: 10 // Geser label ke kanan/bawah
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Waktu Eksekusi (microseconds)',
+                            font: {
+                                size: 12,
+                                weight: 'bold'
+                            }
+                        },
+                        ticks: {
+                            callback: function(value) {
+                                return value.toLocaleString() + ' μs';
+                            }
+                        }
+                    }
+                },
+                interaction: {
+                    intersect: false,
+                    mode: 'index'
+                }
+            }
+        });
+        </script>
+        
+        <div class="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <p class="text-sm text-gray-700">
+                <span class="font-semibold">💡 Info:</span> Grafik ini menampilkan kompleksitas waktu. 
+                Sumbu horizontal (bawah) = jumlah data, Sumbu vertikal (samping) = waktu eksekusi. 
+                Semakin tinggi garis, semakin lambat algoritmanya.
+            </p>
+        </div>
+    <?php endif; ?>
+</div>
+        </div>
+        </div>
+        
     </div>
+    
 </div>
 </body>
 </html>
