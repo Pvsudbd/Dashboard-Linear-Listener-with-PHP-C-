@@ -85,6 +85,7 @@ if (!empty($_POST['search'])) {
     
     // Simpan hasil kompleksitas ke session jika data ditemukan
     // Bisa jalan walau cuman rekursiv doang yang keluar
+    date_default_timezone_set('Asia/Jakarta'); 
     if ($search_result && 
         isset($search_result['iterative']['time_us']) && 
         isset($search_result['recursive']['time_us']) &&
