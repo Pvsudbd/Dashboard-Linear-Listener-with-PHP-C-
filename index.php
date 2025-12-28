@@ -8,13 +8,13 @@ if (!in_array($size, ['200', '1000', '10000'])) {
 }
 
 // Area ngambil size
-$json = file_get_contents("http://127.0.0.1:8080/items?size=" . $size);
+$json = file_get_contents("http://127.0.0.1:8080/items?size=" . $size); //size itu nama dari c++
 
 if ($json === false) {
     die("Gagal mengambil data dari API");
 }
 
-$items = json_decode($json, true);
+$items = json_decode($json, true); 
 
 if (!is_array($items)) {
     die("Format JSON tidak valid");
@@ -39,6 +39,22 @@ $items_paginated = array_slice($items, $offset, $limit);
 // Request and Response area
 $search_result = null;
 $keyword = "";
+
+// Inisialisasi session untuk menyimpan hasil kompleksitas
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
+if (!isset($_SESSION['complexity_results'])) {
+    $_SESSION['complexity_results'] = [];
+}
+
+// Handle reset complexity data
+if (isset($_GET['reset_complexity'])) {
+    $_SESSION['complexity_results'] = [];
+    header("Location: ?size=" . $size);
+    exit;
+}
 
 if (!empty($_POST['search'])) {
     $keyword = trim($_POST['search']);
@@ -66,6 +82,23 @@ if (!empty($_POST['search'])) {
     curl_close($ch);
 
     $search_result = json_decode($response, true);
+    
+    // Simpan hasil kompleksitas ke session jika data ditemukan
+    // Bisa jalan walau cuman rekursiv doang yang keluar
+    if ($search_result && 
+        isset($search_result['iterative']['time_us']) && 
+        isset($search_result['recursive']['time_us']) &&
+        ($search_result['iterative']['result'] !== null || $search_result['recursive']['result'] !== null)) {
+        
+        $result_key = $search_size . "_" . time(); // Unique key berdasarkan size dan waktu
+        $_SESSION['complexity_results'][$result_key] = [
+            'keyword' => $keyword,
+            'size' => $search_size,
+            'iterative' => $search_result['iterative']['time_us'],
+            'recursive' => $search_result['recursive']['time_us'],
+            'timestamp' => date('H:i:s')
+        ];
+    }
 }
 ?>
 
@@ -75,6 +108,7 @@ if (!empty($_POST['search'])) {
     <meta charset="UTF-8">
     <title>Data Pengiriman</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 
 
@@ -123,6 +157,7 @@ if (!empty($_POST['search'])) {
     </div>
 
     <h1 class="text-2xl font-bold mb-6 text-center">Data Pengiriman Barang</h1>
+
 <div class="flex justify-between items-center mb-6">
     
     <!-- Info data (kiri) -->
@@ -206,7 +241,6 @@ if (!empty($_POST['search'])) {
         <tbody>
         <?php if ($search_result !== null): ?>
             
-        <!-- Iterative Area-->
             <?php if ($search_result['iterative']['result'] === null && $search_result['recursive']['result'] === null): ?>
                 <tr>
                     <td colspan="7" class="px-6 py-8 text-center">
@@ -252,7 +286,6 @@ if (!empty($_POST['search'])) {
                 </tr>
                 <?php endif; ?>
 
-                 <!-- Rekursive Area-->
                 <?php if ($search_result['recursive']['result'] !== null):
                     $item = $search_result['recursive']['result'];
                 ?>
@@ -360,23 +393,162 @@ if (!empty($_POST['search'])) {
 
         <!-- Section kedua -->
 <div class="max-w-6xl mx-auto bg-white p-6 rounded shadow mt-6">
-    <h2 class="text-xl font-bold mb-4">Tempat penilaian aka</h2>
-    
-    <div class="grid grid-cols-5 gap-4 mb-2">
-        <div class="col-span-2">
-            <p class="text-sm text-gray-600 font-medium">Metode Sorting</p>
-        </div>
-        <div class="col-span-3 col-start-3">
-            <p class="text-sm text-gray-600 font-medium">Grafik Kompleksitas</p>
-        </div>
+    <div class="flex items-center justify-between mb-4">
+        <h2 class="text-xl font-bold">Analisis Kompleksitas Waktu</h2>
+        <?php if (!empty($_SESSION['complexity_results'])): ?>
+            <a href="?size=<?= $size ?>&reset_complexity=1" 
+               class="px-4 py-2 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 transition">
+                Hapus Semua Data
+            </a>
+        <?php endif; ?>
     </div>
     
-    <div class="grid grid-cols-5 grid-rows-5 gap-4">
-        <div class="col-span-2 row-span-5 bg-gray-100 p-4 rounded">
-            Bagian Kiri (2 kolom, 5 baris)
+    <div class="grid grid-cols-5 gap-4">
+        <!-- Bagian Kiri - Riwayat Pencarian -->
+        <div class="col-span-2 bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <h3 class="font-semibold text-gray-700 mb-3">Riwayat Pencarian</h3>
+            
+            <?php if (empty($_SESSION['complexity_results'])): ?>
+                <div class="text-center py-8 text-gray-400">
+                    <svg class="w-16 h-16 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    <p class="text-sm">Belum ada data pencarian</p>
+                    <p class="text-xs mt-1">Mulai cari item untuk melihat hasil</p>
+                </div>
+            <?php else: ?>
+                <div class="space-y-2 max-h-96 overflow-y-auto">
+                    <?php 
+                    $reversed_results = array_reverse($_SESSION['complexity_results'], true);
+                    foreach ($reversed_results as $key => $result): 
+                    ?>
+                        <div class="bg-white p-3 rounded border border-gray-200 text-sm">
+                            <div class="flex justify-between items-start mb-2">
+                                <span class="font-semibold text-gray-800 text-xs"><?= htmlspecialchars($result['keyword']) ?></span>
+                                <span class="text-xs text-gray-500"><?= $result['timestamp'] ?></span>
+                            </div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs font-medium">
+                                    <?= number_format($result['size']) ?> data
+                                </span>
+                            </div>
+                            <div class="text-xs space-y-1">
+                                <div class="flex justify-between">
+                                    <span class="text-blue-600">Iterative:</span>
+                                    <span class="font-semibold"><?= number_format($result['iterative']) ?> μs</span>
+                                </div>
+                                <div class="flex justify-between">
+                                    <span class="text-purple-600">Recursive:</span>
+                                    <span class="font-semibold"><?= number_format($result['recursive']) ?> μs</span>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            <?php endif; ?>
         </div>
-        <div class="col-span-3 row-span-5 col-start-3 bg-gray-200 p-4 rounded">
-            Bagian Kanan (3 kolom, 5 baris)
+        
+        <!-- Wilayah Grafik -->
+        <div class="col-span-3 bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <h3 class="font-semibold text-gray-700 mb-3">Grafik Perbandingan Kompleksitas</h3>
+            
+            <?php if (empty($_SESSION['complexity_results'])): ?>
+                <div class="flex items-center justify-center h-80 text-gray-400">
+                    <div class="text-center">
+                        <svg class="w-20 h-20 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                        </svg>
+                        <p class="font-medium">Grafik akan muncul setelah ada data</p>
+                        <p class="text-sm mt-1">Lakukan pencarian untuk membuat grafik</p>
+                    </div>
+                </div>
+            <?php else: ?>
+                <div class="bg-white p-4 rounded border border-gray-200">
+                    <canvas id="complexityChart" class="max-h-80"></canvas>
+                </div>
+                
+                <script>
+                // Template Chart.Js
+                const complexityData = <?= json_encode(array_values($_SESSION['complexity_results'])) ?>;
+                
+                const labels = complexityData.map((item, index) => {
+                    return `${item.keyword.substring(0, 15)}... (${item.size})`;
+                });
+                
+                const iterativeData = complexityData.map(item => item.iterative);
+                const recursiveData = complexityData.map(item => item.recursive);
+                
+                const ctx = document.getElementById('complexityChart').getContext('2d');
+                const chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Iterative (μs)',
+                                data: iterativeData,
+                                backgroundColor: 'rgba(59, 130, 246, 0.7)',
+                                borderColor: 'rgb(59, 130, 246)',
+                                borderWidth: 2
+                            },
+                            {
+                                label: 'Recursive (μs)',
+                                data: recursiveData,
+                                backgroundColor: 'rgba(168, 85, 247, 0.7)',
+                                borderColor: 'rgb(168, 85, 247)',
+                                borderWidth: 2
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: 'Perbandingan Waktu Eksekusi (Microseconds)',
+                                font: {
+                                    size: 16,
+                                    weight: 'bold'
+                                }
+                            },
+                            legend: {
+                                display: true,
+                                position: 'top',
+                            },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return context.dataset.label + ': ' + 
+                                               context.parsed.y.toLocaleString() + ' μs';
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Waktu (microseconds)'
+                                },
+                                ticks: {
+                                    callback: function(value) {
+                                        return value.toLocaleString() + ' μs';
+                                    }
+                                }
+                            },
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: 'Item (Ukuran Data)'
+                                }
+                            }
+                        }
+                    }
+                });
+                </script>
+            <?php endif; ?>
         </div>
     </div>
 </div>
